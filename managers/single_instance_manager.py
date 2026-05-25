@@ -17,25 +17,12 @@ import time
 from typing import Optional
 
 from config import LOCK_OFFSET_SECONDS
+from utils.path_utils import get_tmp_directory_path
 
 logger = logging.getLogger(__name__)
 
 # Java uses: java.util.concurrent.locks.Lock.getName() + ".lock"
 LOCK_FILE_NAME = "java.util.concurrent.locks.Lock.lock"
-
-
-def _get_tmp_directory_path() -> str:
-    """Get temp directory matching Java's SingleInstanceManager.getTmpDirectoryPath()."""
-    if platform.system() == "Windows":
-        base = os.environ.get("LOCALAPPDATA", "")
-        if not base:
-            base = os.path.join(os.path.expanduser("~"), "AppData", "Local")
-        lock_dir = os.path.join(base, "mv", "las", "temp")
-    else:
-        home = os.path.expanduser("~")
-        lock_dir = os.path.join(home, ".config", "mv", "las", "temp")
-    os.makedirs(lock_dir, exist_ok=True)
-    return lock_dir
 
 
 class SingleInstanceManager:
@@ -54,7 +41,7 @@ class SingleInstanceManager:
 
     def _setup(self):
         """Attempt to acquire the lock on startup (matches Java constructor)."""
-        lock_dir = _get_tmp_directory_path()
+        lock_dir = get_tmp_directory_path()
         self._lock_path = os.path.join(lock_dir, LOCK_FILE_NAME)
 
         try:

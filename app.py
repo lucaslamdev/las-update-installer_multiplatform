@@ -10,7 +10,9 @@ This is a module management server that:
 """
 
 import logging
+import socket
 import sys
+import threading
 import time
 import uuid
 from typing import Optional
@@ -119,13 +121,31 @@ def start_server(key: Optional[MvupdateKey]):
     elapsed_ms = (time.time() - start_time) * 1000
     logger.info(f"Started [{elapsed_ms:.0f}] milliseconds port \"{port}\"")
 
+    server_thread = threading.Thread(target=app.start, name="http-server")
+    server_thread.start()
+    _wait_until_server_listening(port)
+
     from discovery.discovery_client import DiscoveryClient, DiscoveryServerConfig
 
     if DiscoveryServerConfig().is_configured():
-        DiscoveryClient(port=port).start()
+        try:
+            DiscoveryClient(port=port).start()
+        except Exception as e:
+            logger.error(f"Discovery client failed to start: {e}")
 
-    # Start the server (blocking)
-    app.start()
+    server_thread.join()
+
+
+def _wait_until_server_listening(port: int, timeout: float = 10.0):
+    """Wait until the HTTP server accepts connections on the given port."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            with socket.create_connection((LOCALHOST, port), timeout=0.1):
+                return
+        except OSError:
+            time.sleep(0.05)
+    raise TimeoutError(f"Server did not start listening on port {port} within {timeout}s")
 
 
 def main():

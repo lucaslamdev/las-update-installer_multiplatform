@@ -64,9 +64,12 @@ class ModuleManagerImpl(ModuleManager):
         return cls._instance
 
     def _get_module(self, release: str) -> Module:
-        """Get a Module instance for the given release (always returns, never None)."""
+        """Get a Module instance for the given release."""
         config = self._repository.get(release)
-        return Module(self._install4j_utils, config)
+        module = Module(self._install4j_utils, config)
+        if not module.exists():
+            raise ModuleNotFoundException(f"Module not found: {release}")
+        return module
 
     def create(self, release: str, input_stream):
         """Install a new module.

@@ -7,26 +7,12 @@ Uses the same temp directory as Java: LOCALAPPDATA/mv/las/temp on Windows,
 from __future__ import annotations
 import logging
 import os
-import platform
 from typing import Optional
 
 from models.server_config import ServerConfig
+from utils.path_utils import get_tmp_directory_path
 
 logger = logging.getLogger(__name__)
-
-
-def _get_config_dir() -> str:
-    """Get the config directory matching Java's SingleInstanceManager.getTmpDirectoryPath()."""
-    if platform.system() == "Windows":
-        base = os.environ.get("LOCALAPPDATA", "")
-        if not base:
-            base = os.path.join(os.path.expanduser("~"), "AppData", "Local")
-        config_dir = os.path.join(base, "mv", "las", "temp")
-    else:
-        home = os.path.expanduser("~")
-        config_dir = os.path.join(home, ".config", "mv", "las", "temp")
-    os.makedirs(config_dir, exist_ok=True)
-    return config_dir
 
 
 class ServerConfigRepository:
@@ -43,7 +29,7 @@ class ServerConfigRepositoryProperties(ServerConfigRepository):
     """Persists ServerConfig to a properties file."""
 
     def __init__(self):
-        self._file_path = os.path.join(_get_config_dir(), "serverConfig.properties")
+        self._file_path = os.path.join(get_tmp_directory_path(), "serverConfig.properties")
 
     def get_current_server_config(self) -> Optional[ServerConfig]:
         if not os.path.exists(self._file_path):
