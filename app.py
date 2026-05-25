@@ -201,6 +201,7 @@ def main():
         uri_arg = uri_args[0]
         logger.info(f"Launched via URI schema: {uri_arg}")
         ApplicationEnvPropertySource().set_property("uriSchema", uri_arg)
+        DebugMode.print_uri_schema(uri_arg)
         DebugMode.log_event("startup", "Launched via URI schema", uri=uri_arg)
 
     # Single instance check (matches Java SingleInstanceManager in constructor)

@@ -137,7 +137,9 @@ Outras formas de ativar:
 | `application.properties` | `las.debug=true` |
 | Diretório customizado | `LAS_DEBUG_DIR=C:/temp/las-debug python app.py --debug` |
 
-Com debug ativo, os artefatos são gravados em:
+Com debug ativo, cada request **recebido** e **enviado** é exibido no terminal em tempo real (além dos arquivos JSONL). Payloads Base64 — como o parâmetro de `mvupdate:connect?{base64}` — são decodificados automaticamente na tela para facilitar a leitura.
+
+Com debug ativo, os artefatos também são gravados em:
 
 | Caminho (padrão) | Conteúdo |
 |------------------|----------|
