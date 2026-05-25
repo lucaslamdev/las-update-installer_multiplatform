@@ -36,8 +36,19 @@ class DebugMode:
     def _activate(cls):
         cls._enabled = True
         cls._ensure_dirs()
+        cls._configure_console_encoding()
         logger.info("Debug mode ENABLED — logs in %s", cls.get_base_dir())
         cls._console_banner()
+
+    @classmethod
+    def _configure_console_encoding(cls):
+        for stream in (sys.stdout, sys.stderr):
+            reconfigure = getattr(stream, "reconfigure", None)
+            if callable(reconfigure):
+                try:
+                    reconfigure(encoding="utf-8", errors="replace")
+                except Exception:
+                    pass
 
     @classmethod
     def enable(cls, base_dir: Optional[str] = None):
@@ -116,7 +127,15 @@ class DebugMode:
     @classmethod
     def _console_print(cls, text: str):
         with _print_lock:
-            print(text, file=sys.stdout, flush=True)
+            try:
+                print(text, file=sys.stdout, flush=True)
+            except UnicodeEncodeError:
+                encoding = getattr(sys.stdout, "encoding", None) or "utf-8"
+                print(
+                    text.encode(encoding, errors="replace").decode(encoding, errors="replace"),
+                    file=sys.stdout,
+                    flush=True,
+                )
 
     @classmethod
     def _write_jsonl(cls, filename: str, payload: dict[str, Any]):
@@ -133,7 +152,7 @@ class DebugMode:
     @classmethod
     def _try_decode_base64(cls, value: str) -> Any:
         candidate = re.sub(r"\s+", "", value.strip())
-        if len(candidate) < 4:
+        if len(candidate) < 12:
             return None
         if not BASE64_RE.match(candidate):
             return None
