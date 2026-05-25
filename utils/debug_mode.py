@@ -33,29 +33,31 @@ class DebugMode:
     _base_dir: Optional[str] = None
 
     @classmethod
-    def enable(cls, base_dir: Optional[str] = None):
+    def _activate(cls):
         cls._enabled = True
-        if base_dir:
-            cls._base_dir = base_dir
         cls._ensure_dirs()
         logger.info("Debug mode ENABLED — logs in %s", cls.get_base_dir())
         cls._console_banner()
+
+    @classmethod
+    def enable(cls, base_dir: Optional[str] = None):
+        if base_dir:
+            cls._base_dir = base_dir
+        cls._activate()
 
     @classmethod
     def is_enabled(cls) -> bool:
         if cls._enabled is not None:
             return cls._enabled
         if os.environ.get(DEBUG_ENV, "").strip().lower() in ("1", "true", "yes", "on"):
-            cls._enabled = True
-            cls._ensure_dirs()
+            cls._activate()
             return True
         try:
             from environment import EnvironmentConfiguration
 
             value = EnvironmentConfiguration.get_environment().get_property(DEBUG_PROPERTY, "false")
             if str(value).strip().lower() in ("1", "true", "yes", "on"):
-                cls._enabled = True
-                cls._ensure_dirs()
+                cls._activate()
                 return True
         except Exception:
             pass
@@ -239,6 +241,18 @@ class DebugMode:
                 sanitized[key] = f"TOKEN***{suffix}"
             else:
                 sanitized[key] = value
+        return sanitized
+
+    @classmethod
+    def _sanitize_install4j_args(cls, args: list[str]) -> list[str]:
+        sanitized = []
+        for arg in args:
+            if "discovery.server.token=" in arg:
+                prefix, _, token = arg.partition("=")
+                suffix = token[-4:] if len(token) >= 4 else "****"
+                sanitized.append(f"{prefix}=TOKEN***{suffix}")
+            else:
+                sanitized.append(arg)
         return sanitized
 
     @classmethod
@@ -463,7 +477,7 @@ class DebugMode:
             f"{action} module via install4j",
             release=release,
             executable=executable,
-            args=args,
+            args=cls._sanitize_install4j_args(args),
             wait=wait,
         )
 
