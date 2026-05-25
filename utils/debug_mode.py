@@ -429,7 +429,7 @@ class DebugMode:
         archive_dir = os.path.join(cls.get_modules_dir(), release, ts)
         os.makedirs(archive_dir, exist_ok=True)
 
-        installer_name = filename or release
+        installer_name = os.path.basename(filename) if filename else release
         installer_path = os.path.join(archive_dir, installer_name)
         with open(installer_path, "wb") as f:
             f.write(data)

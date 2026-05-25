@@ -128,7 +128,12 @@ class AppServer:
             if not DebugMode.is_enabled():
                 return None
             g._debug_started_at = time.time()
-            g._debug_skip_body = request.path.startswith("/modules/") and request.method == "POST"
+            parts = request.path.strip("/").split("/")
+            g._debug_skip_body = (
+                request.method == "POST"
+                and len(parts) == 2
+                and parts[0] == "modules"
+            )
             return None
 
         @self._app.after_request
