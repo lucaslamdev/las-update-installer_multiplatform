@@ -32,24 +32,27 @@ logger = logging.getLogger(__name__)
 
 
 def _log_outbound(method: str, url: str, headers: dict, body: Any, response: Optional[requests.Response], started: float, error: Optional[str] = None):
-    duration_ms = (time.time() - started) * 1000
-    status = response.status_code if response is not None else None
-    resp_body = None
-    if response is not None:
-        try:
-            resp_body = response.text
-        except Exception:
-            resp_body = None
-    DebugMode.log_http_outbound(
-        method=method,
-        url=url,
-        request_headers=headers,
-        request_body=body,
-        status_code=status,
-        response_body=resp_body,
-        duration_ms=duration_ms,
-        error=error,
-    )
+    try:
+        duration_ms = (time.time() - started) * 1000
+        status = response.status_code if response is not None else None
+        resp_body = None
+        if response is not None:
+            try:
+                resp_body = response.text
+            except Exception:
+                resp_body = None
+        DebugMode.log_http_outbound(
+            method=method,
+            url=url,
+            request_headers=headers,
+            request_body=body,
+            status_code=status,
+            response_body=resp_body,
+            duration_ms=duration_ms,
+            error=error,
+        )
+    except Exception as e:
+        logger.warning("Debug outbound logging failed: %s", e)
 
 
 class DiscoveryServerConfig:

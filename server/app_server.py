@@ -159,16 +159,19 @@ class AppServer:
 
             resp_body = response.get_data(as_text=True) or None
 
-            DebugMode.log_http_inbound(
-                method=request.method,
-                path=request.path,
-                query=request.query_string.decode("utf-8", errors="replace"),
-                headers={k: v for k, v in request.headers.items()},
-                request_body=req_body,
-                status_code=response.status_code,
-                response_body=resp_body,
-                duration_ms=duration_ms,
-            )
+            try:
+                DebugMode.log_http_inbound(
+                    method=request.method,
+                    path=request.path,
+                    query=request.query_string.decode("utf-8", errors="replace"),
+                    headers={k: v for k, v in request.headers.items()},
+                    request_body=req_body,
+                    status_code=response.status_code,
+                    response_body=resp_body,
+                    duration_ms=duration_ms,
+                )
+            except Exception as e:
+                logger.warning("Debug inbound logging failed: %s", e)
             return response
 
     def _setup_error_handlers(self):

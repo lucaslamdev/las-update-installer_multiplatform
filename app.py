@@ -62,28 +62,34 @@ class MVUpdateClient:
         response = None
         try:
             response = requests.post(url, json=body, headers=headers, timeout=10)
-            DebugMode.log_http_outbound(
-                method="POST",
-                url=url,
-                request_headers=headers,
-                request_body=body,
-                status_code=response.status_code,
-                response_body=response.text,
-                duration_ms=(time.time() - started) * 1000,
-            )
-            response.raise_for_status()
-        except Exception as e:
-            if response is None:
+            try:
                 DebugMode.log_http_outbound(
                     method="POST",
                     url=url,
                     request_headers=headers,
                     request_body=body,
-                    status_code=None,
-                    response_body=None,
+                    status_code=response.status_code,
+                    response_body=response.text,
                     duration_ms=(time.time() - started) * 1000,
-                    error=str(e),
                 )
+            except Exception as log_err:
+                logger.warning("Debug outbound logging failed: %s", log_err)
+            response.raise_for_status()
+        except Exception as e:
+            if response is None:
+                try:
+                    DebugMode.log_http_outbound(
+                        method="POST",
+                        url=url,
+                        request_headers=headers,
+                        request_body=body,
+                        status_code=None,
+                        response_body=None,
+                        duration_ms=(time.time() - started) * 1000,
+                        error=str(e),
+                    )
+                except Exception as log_err:
+                    logger.warning("Debug outbound logging failed: %s", log_err)
             logger.error(f"Failed to connect to server: {e}")
             raise
 
