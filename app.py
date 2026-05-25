@@ -77,8 +77,8 @@ def connect_server(key: Optional[MvupdateKey]):
             client = MVUpdateClient(server_config)
             client.connect(key)
 
-    elapsed = time.time() - start_time
-    logger.info(f"Finish [{elapsed:.0f}] milliseconds")
+    elapsed_ms = (time.time() - start_time) * 1000
+    logger.info(f"Finish [{elapsed_ms:.0f}] milliseconds")
 
 
 def start_server(key: Optional[MvupdateKey]):
@@ -116,8 +116,13 @@ def start_server(key: Optional[MvupdateKey]):
     )
     server_config_repo.set_current_server_config(server_config)
 
-    elapsed = time.time() - start_time
-    logger.info(f"Started [{elapsed:.0f}] milliseconds port \"{port}\"")
+    elapsed_ms = (time.time() - start_time) * 1000
+    logger.info(f"Started [{elapsed_ms:.0f}] milliseconds port \"{port}\"")
+
+    from discovery.discovery_client import DiscoveryClient, DiscoveryServerConfig
+
+    if DiscoveryServerConfig().is_configured():
+        DiscoveryClient(port=port).start()
 
     # Start the server (blocking)
     app.start()

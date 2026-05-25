@@ -74,9 +74,9 @@ class Module:
             return self.get_internal_url(None)
         return None
 
-    def start(self):
+    def start(self, args: Optional[list[str]] = None):
         """Start this module via install4j."""
-        self._install4j_utils.start(self._module_config)
+        self._install4j_utils.start(self._module_config, args)
 
     def stop(self):
         """Stop this module by sending a shutdown request."""

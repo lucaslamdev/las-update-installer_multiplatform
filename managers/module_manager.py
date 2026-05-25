@@ -100,7 +100,7 @@ class ModuleManagerImpl(ModuleManager):
                 )
 
             logger.info(f"Starting module: {release}")
-            module.start()
+            module.start(args)
             self._poll_until_status(module, StatusInstall.STARTED)
             logger.info(f"Module started: {release}")
 

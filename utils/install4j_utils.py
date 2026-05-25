@@ -26,7 +26,7 @@ class Install4jUtils:
     def uninstall(self, config: ModuleConfig):
         raise NotImplementedError
 
-    def start(self, config: ModuleConfig):
+    def start(self, config: ModuleConfig, extra_args: Optional[list[str]] = None):
         raise NotImplementedError
 
 
@@ -38,7 +38,6 @@ class GenericInstall4jUtils(Install4jUtils):
     - uninstall: runs uninstaller with -q, waits for completion
     - start: runs executable with -J-Ddiscovery.server.url/token JVM args, detached
     - Checks exit codes, throws InstallException on failure
-    - Quotes executable path on Windows
     """
 
     def install(self, config: ModuleConfig):
@@ -71,7 +70,7 @@ class GenericInstall4jUtils(Install4jUtils):
             args=["-q"],
         )
 
-    def start(self, config: ModuleConfig):
+    def start(self, config: ModuleConfig, extra_args: Optional[list[str]] = None):
         """Start the module executable with discovery JVM args, detached."""
         executable = config.module_executable_file
         install_dir = config.module_installer_dir
@@ -87,6 +86,8 @@ class GenericInstall4jUtils(Install4jUtils):
         if server_config:
             args.append(f"-J-Ddiscovery.server.url={server_config.url}")
             args.append(f"-J-Ddiscovery.server.token={server_config.token}")
+        if extra_args:
+            args.extend(extra_args)
 
         logger.info(f"Starting module: {config.release_module} - {executable}")
         self._execute_process(
@@ -105,7 +106,6 @@ class GenericInstall4jUtils(Install4jUtils):
         """Execute a command as a subprocess.
 
         Matches Java's executeProcess:
-        - Quotes executable path on Windows
         - Sets working directory
         - Merges stderr into stdout (redirectErrorStream)
         - If wait=True, waits for exit and checks code
@@ -113,16 +113,16 @@ class GenericInstall4jUtils(Install4jUtils):
         """
         cmd_args = args or []
         is_windows = platform.system() == "Windows"
+        command = [executable] + cmd_args
 
-        # Quote executable path on Windows
-        exe = f'"{executable}"' if is_windows else executable
-        command = [exe] + cmd_args
+        stdout = subprocess.PIPE if wait else subprocess.DEVNULL
+        stderr = subprocess.STDOUT if wait else subprocess.DEVNULL
 
         try:
             proc = subprocess.Popen(
                 command,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.STDOUT,
+                stdout=stdout,
+                stderr=stderr,
                 cwd=working_dir if os.path.isdir(working_dir) else None,
                 creationflags=(
                     subprocess.DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP

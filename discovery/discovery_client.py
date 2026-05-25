@@ -65,13 +65,13 @@ class DiscoveryClient:
     start() calls registry() then starts heartbeat.
     """
 
-    def __init__(self, env=None):
+    def __init__(self, env=None, port: int = 0):
         """Initialize from Environment (matches Java constructor)."""
         if env is None:
             env = EnvironmentConfiguration.get_environment()
 
         self._discovery_server = DiscoveryServerConfig()
-        self._self = ServerInfo.from_environment(env)
+        self._self = ServerInfo.from_environment(env, port=port)
         self._instance_id = str(uuid.uuid4())
 
         # Store instanceId in ApplicationEnvPropertySource (Java does this)

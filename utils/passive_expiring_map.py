@@ -56,8 +56,6 @@ class PassiveExpiringMap:
             if self._is_expired(entry_time):
                 del self._map[key]
                 return None
-            # Refresh TTL on access
-            self._map[key] = (value, time.time())
             return value
 
     def remove(self, key: str) -> Optional[Any]:

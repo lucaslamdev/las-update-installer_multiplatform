@@ -19,6 +19,8 @@ def _get_config_dir() -> str:
     """Get the config directory matching Java's SingleInstanceManager.getTmpDirectoryPath()."""
     if platform.system() == "Windows":
         base = os.environ.get("LOCALAPPDATA", "")
+        if not base:
+            base = os.path.join(os.path.expanduser("~"), "AppData", "Local")
         config_dir = os.path.join(base, "mv", "las", "temp")
     else:
         home = os.environ.get("user.home", os.path.expanduser("~"))
