@@ -17,6 +17,7 @@ from models.module import Module
 from models.module_config import ModuleConfig
 from repositories.module_repository import ModuleRepository, ModuleRepositoryImpl
 from utils.install4j_utils import GenericInstall4jUtils, Install4jUtils
+from utils.debug_mode import DebugMode
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ logger = logging.getLogger(__name__)
 class ModuleManager:
     """Interface for module business logic."""
 
-    def create(self, release: str, input_stream):
+    def create(self, release: str, input_stream, upload_meta: Optional[dict] = None):
         raise NotImplementedError
 
     def start(self, release: str, args: Optional[list[str]] = None):
@@ -71,7 +72,7 @@ class ModuleManagerImpl(ModuleManager):
             raise ModuleNotFoundException(f"Module not found: {release}")
         return module
 
-    def create(self, release: str, input_stream):
+    def create(self, release: str, input_stream, upload_meta: Optional[dict] = None):
         """Install a new module.
 
         Java: calls get() which throws ModuleNotFoundException if not found.
@@ -86,8 +87,15 @@ class ModuleManagerImpl(ModuleManager):
             except ModuleNotFoundException:
                 pass  # Expected for new modules - fall through to create
 
-            config = self._repository.create(release, input_stream)
+            config = self._repository.create(release, input_stream, upload_meta=upload_meta)
             module = Module(self._install4j_utils, config)
+            DebugMode.log_event(
+                "module",
+                "Installing module",
+                release=release,
+                installer=config.module_installer_file,
+                install_dir=config.module_installer_dir,
+            )
             module.install()
             logger.info(f"Module created and installed: {release}")
 
@@ -103,6 +111,7 @@ class ModuleManagerImpl(ModuleManager):
                 )
 
             logger.info(f"Starting module: {release}")
+            DebugMode.log_event("module", "Starting module", release=release, args=args)
             module.start(args)
             self._poll_until_status(module, StatusInstall.STARTED)
             logger.info(f"Module started: {release}")
@@ -118,6 +127,7 @@ class ModuleManagerImpl(ModuleManager):
                     f"Module {release} is {status.value}, expected STARTED"
                 )
 
+            DebugMode.log_event("module", "Stopping module", release=release)
             module.stop()
             self._poll_until_status(module, StatusInstall.STOPED)
             logger.info(f"Module stopped: {release}")
@@ -126,6 +136,7 @@ class ModuleManagerImpl(ModuleManager):
         """Uninstall and delete a module."""
         with self._lock:
             module = self._get_module(release)
+            DebugMode.log_event("module", "Deleting module", release=release)
             module.uninstall()
             self._repository.delete(release)
             logger.info(f"Module deleted: {release}")

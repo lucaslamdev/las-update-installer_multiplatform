@@ -121,6 +121,36 @@ Certifique-se de que **Java** e o **navegador Flash-compatível** já estejam co
 python app.py
 ```
 
+### Modo debug
+
+Ative o rastreamento detalhado para inspecionar módulos instalados, tráfego HTTP e operações install4j:
+
+```bash
+python app.py --debug
+```
+
+Outras formas de ativar:
+
+| Método | Exemplo |
+|--------|---------|
+| Variável de ambiente | `LAS_DEBUG=1 python app.py` |
+| `application.properties` | `las.debug=true` |
+| Diretório customizado | `LAS_DEBUG_DIR=C:/temp/las-debug python app.py --debug` |
+
+Com debug ativo, os artefatos são gravados em:
+
+| Caminho (padrão) | Conteúdo |
+|------------------|----------|
+| `{temp}/debug/http_inbound.jsonl` | Requests/responses recebidos pelo servidor local |
+| `{temp}/debug/http_outbound.jsonl` | Requests/responses enviados (discovery, `/connect`) |
+| `{temp}/debug/events.jsonl` | Eventos de módulos, install4j e startup |
+| `{temp}/debug/requests/` | Snapshot JSON individual por request |
+| `{temp}/debug/modules/{release}/{timestamp}/` | Cópia dos instaladores recebidos + `metadata.json` |
+
+`{temp}` corresponde a `%LOCALAPPDATA%/mv/las/temp` (Windows) ou `~/.config/mv/las/temp` (Linux/macOS), salvo se `LAS_DEBUG_DIR` for definido.
+
+Tokens de autenticação são mascarados nos logs (`TOKEN***xxxx`). Uploads de módulos são arquivados integralmente para análise posterior.
+
 ### Comportamento na inicialização
 
 1. Carrega logging de `logging.properties`.
@@ -174,6 +204,7 @@ Propriedades principais:
 | `discovery.server.url` | URL base do servidor de discovery remoto |
 | `discovery.server.token` | Token de autenticação do discovery |
 | `uriSchema` | URI `mvupdate://` (normalmente passada pelo browser na linha de comando) |
+| `las.debug` | `true` para ativar modo debug (ver seção Execução) |
 | `info.build.name` / `info.build.version` | Metadados de build (em `application.properties`) |
 
 Constantes em `config.py`:

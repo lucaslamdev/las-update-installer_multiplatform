@@ -131,14 +131,19 @@ def register_handlers(app_server):
         manager = ModuleManagerImpl.get_instance()
 
         # Get uploaded file (Java uses NanoFileUpload for multipart)
+        upload_meta = None
         if "file" in request.files:
             file = request.files["file"]
             input_stream = file.stream
+            upload_meta = {
+                "filename": file.filename,
+                "content_type": file.content_type,
+            }
         else:
             input_stream = request.data
 
         try:
-            manager.create(release, input_stream)
+            manager.create(release, input_stream, upload_meta=upload_meta)
             module = manager.check(release)
             return jsonify(ModuleStatus.from_module(module).to_dict()), 200
         except ModuleExistsException:

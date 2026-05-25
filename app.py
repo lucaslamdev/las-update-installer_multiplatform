@@ -30,6 +30,7 @@ from server.app_server import AppServer
 from server.handlers import register_handlers
 from utils.port_finder import find_available_port
 from utils.protocol_registry import register_mvupdate_protocol
+from utils.debug_mode import DebugMode, init_debug_from_argv
 
 logger = logging.getLogger(__name__)
 
@@ -51,18 +52,38 @@ class MVUpdateClient:
     def connect(self, key: MvupdateKey):
         """Connect to the server with the given key."""
         import requests
+        url = f"{self._server_config.url}/connect"
+        headers = {
+            "Content-Type": "application/json",
+            "Authentication": f"{AUTH_TOKEN_PREFIX}{self._server_config.token}",
+        }
+        body = key.to_dict()
+        started = time.time()
+        response = None
         try:
-            response = requests.post(
-                f"{self._server_config.url}/connect",
-                json=key.to_dict(),
-                headers={
-                    "Content-Type": "application/json",
-                    "Authentication": f"{AUTH_TOKEN_PREFIX}{self._server_config.token}",
-                },
-                timeout=10,
+            response = requests.post(url, json=body, headers=headers, timeout=10)
+            DebugMode.log_http_outbound(
+                method="POST",
+                url=url,
+                request_headers=headers,
+                request_body=body,
+                status_code=response.status_code,
+                response_body=response.text,
+                duration_ms=(time.time() - started) * 1000,
             )
             response.raise_for_status()
         except Exception as e:
+            if response is None:
+                DebugMode.log_http_outbound(
+                    method="POST",
+                    url=url,
+                    request_headers=headers,
+                    request_body=body,
+                    status_code=None,
+                    response_body=None,
+                    duration_ms=(time.time() - started) * 1000,
+                    error=str(e),
+                )
             logger.error(f"Failed to connect to server: {e}")
             raise
 
@@ -120,6 +141,13 @@ def start_server(key: Optional[MvupdateKey]):
 
     elapsed_ms = (time.time() - start_time) * 1000
     logger.info(f"Started [{elapsed_ms:.0f}] milliseconds port \"{port}\"")
+    DebugMode.log_event(
+        "server",
+        "HTTP server starting",
+        port=port,
+        url=server_config.url,
+        debug_dir=DebugMode.get_base_dir() if DebugMode.is_enabled() else None,
+    )
 
     server_thread = threading.Thread(target=app.start, name="http-server")
     server_thread.start()
@@ -150,6 +178,8 @@ def _wait_until_server_listening(port: int, timeout: float = 10.0):
 
 def main():
     """Application entry point (matches Java App.main)."""
+    sys.argv = init_debug_from_argv(sys.argv)
+
     # Setup logging
     try:
         product_logger()
@@ -158,14 +188,20 @@ def main():
         print("[Error] - Not found logging.properties", file=sys.stderr)
         sys.exit(-1)
 
+    if DebugMode.is_enabled():
+        DebugMode.configure_logging()
+        DebugMode.log_event("startup", "Application started in debug mode")
+
     # Register mvupdate:// protocol in Windows registry
     register_mvupdate_protocol()
 
     # Check if launched via URI schema (browser passes URI as command line arg)
-    if len(sys.argv) > 1 and sys.argv[1].startswith("mvupdate:"):
-        uri_arg = sys.argv[1]
+    uri_args = [arg for arg in sys.argv[1:] if arg.startswith("mvupdate:")]
+    if uri_args:
+        uri_arg = uri_args[0]
         logger.info(f"Launched via URI schema: {uri_arg}")
         ApplicationEnvPropertySource().set_property("uriSchema", uri_arg)
+        DebugMode.log_event("startup", "Launched via URI schema", uri=uri_arg)
 
     # Single instance check (matches Java SingleInstanceManager in constructor)
     instance_manager = SingleInstanceManager()

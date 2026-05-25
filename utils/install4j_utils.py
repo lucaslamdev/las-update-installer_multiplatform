@@ -13,6 +13,7 @@ from typing import Optional
 
 from models import InstallException
 from models.module_config import ModuleConfig
+from utils.debug_mode import DebugMode
 
 logger = logging.getLogger(__name__)
 
@@ -49,6 +50,9 @@ class GenericInstall4jUtils(Install4jUtils):
             raise InstallException(f"Installer not found: {installer}")
 
         logger.info(f"Installing module: {config.release_module} from {installer}")
+        DebugMode.log_install4j(
+            "install", config.release_module, installer, ["-q", "-dir", install_dir], wait=True
+        )
         self._execute_process(
             installer, install_dir,
             wait=True,
@@ -64,6 +68,9 @@ class GenericInstall4jUtils(Install4jUtils):
             raise InstallException(f"Uninstaller not found: {uninstaller}")
 
         logger.info(f"Uninstalling module: {config.release_module} using {uninstaller}")
+        DebugMode.log_install4j(
+            "uninstall", config.release_module, uninstaller, ["-q"], wait=True
+        )
         self._execute_process(
             uninstaller, install_dir,
             wait=True,
@@ -90,6 +97,9 @@ class GenericInstall4jUtils(Install4jUtils):
             args.extend(extra_args)
 
         logger.info(f"Starting module: {config.release_module} - {executable}")
+        DebugMode.log_install4j(
+            "start", config.release_module, executable, args, wait=False
+        )
         self._execute_process(
             executable, install_dir,
             wait=False,

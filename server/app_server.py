@@ -12,9 +12,10 @@ import logging
 import os
 import tempfile
 import threading
+import time
 from typing import Optional
 
-from flask import Flask, Response, request, jsonify
+from flask import Flask, Response, g, request, jsonify
 
 from config import AUTH_HEADER, AUTH_TOKEN_PREFIX, TEMP_FILE_CLEANUP_DELAY, LOCALHOST
 from environment import EnvironmentConfiguration
@@ -75,6 +76,7 @@ class AppServer:
         self._allow_headers = _calculate_allow_headers()
         self._setup_cors()
         self._setup_anti_cache()
+        self._setup_debug_tracing()
         self._setup_error_handlers()
         self.add_mappings()
 
@@ -115,6 +117,53 @@ class AppServer:
             response.headers["Cache-Control"] = "no-cache, no-store, must-revalidate"
             response.headers["Pragma"] = "no-cache"
             response.headers["Expires"] = "0"
+            return response
+
+    def _setup_debug_tracing(self):
+        """Log inbound HTTP requests/responses when debug mode is active."""
+        from utils.debug_mode import DebugMode
+
+        @self._app.before_request
+        def debug_before_request():
+            if not DebugMode.is_enabled():
+                return None
+            g._debug_started_at = time.time()
+            g._debug_skip_body = request.path.startswith("/modules/") and request.method == "POST"
+            return None
+
+        @self._app.after_request
+        def debug_after_request(response: Response) -> Response:
+            if not DebugMode.is_enabled():
+                return response
+
+            started = getattr(g, "_debug_started_at", None)
+            duration_ms = (time.time() - started) * 1000 if started else 0.0
+            skip_body = getattr(g, "_debug_skip_body", False)
+
+            if skip_body:
+                req_body = {
+                    "type": "multipart_or_binary",
+                    "content_type": request.content_type,
+                    "content_length": request.content_length,
+                }
+                if "file" in request.files:
+                    uploaded = request.files["file"]
+                    req_body["filename"] = uploaded.filename
+            else:
+                req_body = request.get_data(as_text=True) or None
+
+            resp_body = response.get_data(as_text=True) or None
+
+            DebugMode.log_http_inbound(
+                method=request.method,
+                path=request.path,
+                query=request.query_string.decode("utf-8", errors="replace"),
+                headers={k: v for k, v in request.headers.items()},
+                request_body=req_body,
+                status_code=response.status_code,
+                response_body=resp_body,
+                duration_ms=duration_ms,
+            )
             return response
 
     def _setup_error_handlers(self):

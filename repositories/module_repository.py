@@ -16,6 +16,7 @@ import stat
 from typing import Optional
 
 from models.module_config import ModuleConfig, get_mvupdate_home
+from utils.debug_mode import DebugMode
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ logger = logging.getLogger(__name__)
 class ModuleRepository:
     """Interface for module data access."""
 
-    def create(self, release: str, input_stream) -> ModuleConfig:
+    def create(self, release: str, input_stream, upload_meta: Optional[dict] = None) -> ModuleConfig:
         raise NotImplementedError
 
     def delete(self, release: str):
@@ -50,7 +51,7 @@ class ModuleRepositoryImpl(ModuleRepository):
             return ModuleConfig.from_install_properties(release, install_props)
         return ModuleConfig(release_module=release)
 
-    def create(self, release: str, input_stream) -> ModuleConfig:
+    def create(self, release: str, input_stream, upload_meta: Optional[dict] = None) -> ModuleConfig:
         """Save the uploaded installer file and create a module config.
 
         Java behavior: Files.copy with REPLACE_EXISTING, then setExecutable(true).
@@ -61,19 +62,26 @@ class ModuleRepositoryImpl(ModuleRepository):
         # Java does NOT use platform extension - uses raw release name
         installer_file = os.path.join(module_dir, release)
 
-        # Write the uploaded file
+        if hasattr(input_stream, "read"):
+            data = input_stream.read()
+            if isinstance(data, str):
+                data = data.encode("utf-8")
+        elif isinstance(input_stream, bytes):
+            data = input_stream
+        else:
+            data = input_stream.encode("utf-8")
+
         with open(installer_file, "wb") as f:
-            if hasattr(input_stream, "read"):
-                data = input_stream.read()
-                if isinstance(data, str):
-                    data = data.encode("utf-8")
-                f.write(data)
-            else:
-                f.write(
-                    input_stream
-                    if isinstance(input_stream, bytes)
-                    else input_stream.encode("utf-8")
-                )
+            f.write(data)
+
+        if DebugMode.is_enabled():
+            meta = upload_meta or {}
+            DebugMode.archive_module_upload(
+                release,
+                data,
+                filename=meta.get("filename"),
+                content_type=meta.get("content_type"),
+            )
 
         # Java calls setExecutable(true) on the installer file
         try:

@@ -17,7 +17,7 @@ import os
 import threading
 import time
 import uuid
-from typing import Optional
+from typing import Optional, Any
 
 import requests
 
@@ -26,8 +26,30 @@ from environment import EnvironmentConfiguration, ApplicationEnvPropertySource
 from models.dto import ServerInfo
 from models.instance_info import InstanceInfo
 from models.server_config import ServerConfig
+from utils.debug_mode import DebugMode
 
 logger = logging.getLogger(__name__)
+
+
+def _log_outbound(method: str, url: str, headers: dict, body: Any, response: Optional[requests.Response], started: float, error: Optional[str] = None):
+    duration_ms = (time.time() - started) * 1000
+    status = response.status_code if response is not None else None
+    resp_body = None
+    if response is not None:
+        try:
+            resp_body = response.text
+        except Exception:
+            resp_body = None
+    DebugMode.log_http_outbound(
+        method=method,
+        url=url,
+        request_headers=headers,
+        request_body=body,
+        status_code=status,
+        response_body=resp_body,
+        duration_ms=duration_ms,
+        error=error,
+    )
 
 
 class DiscoveryServerConfig:
@@ -113,21 +135,24 @@ class DiscoveryClient:
         url = self._discovery_server.get_server_url(f"discovery/{self._self.release}")
         logger.info(f"connect to server discovery url {url}")
 
+        headers = {"Content-Type": "application/json", **self._auth_header()}
+        started = time.time()
+        response = None
         try:
             response = requests.post(
                 url,
                 json=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    **self._auth_header(),
-                },
+                headers=headers,
                 timeout=10,
             )
+            _log_outbound("POST", url, headers, payload, response, started)
             # Java checks response == 202
             if response.status_code != 202:
                 raise Exception(f"Registry failed with status {response.status_code}")
             logger.info(f"Registered with discovery server: {self._self.release}")
         except Exception as e:
+            if response is None:
+                _log_outbound("POST", url, headers, payload, None, started, error=str(e))
             logger.error(f"Failed to register with discovery server: {e}")
             raise
 
@@ -142,12 +167,18 @@ class DiscoveryClient:
         url = self._discovery_server.get_server_url(
             f"discovery/{self._self.release}/{self._instance_id}"
         )
+        headers = self._auth_header()
+        started = time.time()
+        response = None
         try:
-            response = requests.delete(url, headers=self._auth_header(), timeout=10)
+            response = requests.delete(url, headers=headers, timeout=10)
+            _log_outbound("DELETE", url, headers, None, response, started)
             if response.status_code != 200:
                 raise Exception(f"Unregistry failed with status {response.status_code}")
             logger.info(f"Unregistered from discovery server: {self._self.release}")
         except Exception as e:
+            if response is None:
+                _log_outbound("DELETE", url, headers, None, None, started, error=str(e))
             logger.error(f"Failed to unregister from discovery server: {e}")
             raise
 
@@ -163,20 +194,23 @@ class DiscoveryClient:
         }
 
         url = self._discovery_server.get_server_url(f"discovery/{self._self.release}")
+        headers = {"Content-Type": "application/json", **self._auth_header()}
+        started = time.time()
+        response = None
         try:
             response = requests.put(
                 url,
                 json=payload,
-                headers={
-                    "Content-Type": "application/json",
-                    **self._auth_header(),
-                },
+                headers=headers,
                 timeout=10,
             )
+            _log_outbound("PUT", url, headers, payload, response, started)
             if response.status_code != 200:
                 raise Exception(f"Heartbeat failed with status {response.status_code}")
             logger.debug(f"Heartbeat sent: {self._self.release}")
         except Exception as e:
+            if response is None:
+                _log_outbound("PUT", url, headers, payload, None, started, error=str(e))
             logger.error(f"Heartbeat failed: {e}")
             raise
 
