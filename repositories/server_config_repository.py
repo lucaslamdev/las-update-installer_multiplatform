@@ -23,7 +23,7 @@ def _get_config_dir() -> str:
             base = os.path.join(os.path.expanduser("~"), "AppData", "Local")
         config_dir = os.path.join(base, "mv", "las", "temp")
     else:
-        home = os.environ.get("user.home", os.path.expanduser("~"))
+        home = os.path.expanduser("~")
         config_dir = os.path.join(home, ".config", "mv", "las", "temp")
     os.makedirs(config_dir, exist_ok=True)
     return config_dir

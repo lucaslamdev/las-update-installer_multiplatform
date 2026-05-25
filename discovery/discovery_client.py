@@ -14,7 +14,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sys
 import threading
 import time
 import uuid
@@ -190,5 +189,5 @@ class DiscoveryClient:
                 logger.error(
                     "error in discovery heartBeat. The process will be closed"
                 )
-                sys.exit(1)
+                os._exit(1)
             time.sleep(HEARTBEAT_INTERVAL)
